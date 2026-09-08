@@ -1,38 +1,812 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My Bike Website</title>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout · Select Payment</title>
+    <!-- SUPABASE JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body {
-            background-color: #f2f2f2;
-            font-family: Arial, sans-serif;
-            text-align: center;
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
-            padding: 50px;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        h1 {
-            color: #222;
-            font-size: 40px;
-            margin-bottom: 30px;
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
         }
 
-        img {
-            width: 350px;
-            max-width: 90%;
+        .checkout-container {
+            max-width: 1000px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+            position: relative;
+        }
+
+        .product-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .gallery-thumbs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .gallery-thumbs .thumb-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .gallery-thumbs .thumb-item img {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            background: var(--bg);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            max-width: 120px;
             height: auto;
-            border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .gallery-thumbs .thumb-item:hover img {
+            transform: scale(1.05);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3);
+        }
+
+        .gallery-thumbs .thumb-item.active img {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.4);
+            transform: scale(1.05);
+        }
+
+        .gallery-thumbs .thumb-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            background: rgba(15, 23, 42, 0.7);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .gallery-thumbs .thumb-item.active .thumb-label {
+            color: var(--accent);
+        }
+
+        .order-summary {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .summary-row.total {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .payment-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            margin-bottom: 6px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+        }
+
+        input::placeholder {
+            color: #64748b;
+            font-weight: 300;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .mobile-info-box {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 18px;
+        }
+
+        .mobile-info-box .info-item {
+            margin-bottom: 12px;
+        }
+
+        .mobile-info-box .info-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .mobile-info-box .info-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .mobile-info-box .info-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .copy-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent);
+            color: #0f172a;
+        }
+
+        .pay-btn {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--accent);
+            color: #0f172a;
+            font-weight: 700;
+            font-size: 1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 8px rgba(56, 189, 248, 0.2);
+        }
+
+        .pay-btn:hover:not(:disabled) {
+            background-color: var(--accent-hover);
+            color: #fff;
+            box-shadow: 0 6px 14px rgba(56, 189, 248, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .pay-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* GREEN SPINNER & OVERLAYS */
+        .loader-overlay {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.95);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .green-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(34, 197, 94, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--success);
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* INSTRUCTION VIEW */
+        .instruction-box {
+            display: none;
+            background: var(--bg);
+            border: 1px solid var(--success);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .instruction-text {
+            font-size: 1.05rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+
+        .ref-badge {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+        }
+
+        /* TOAST NOTIFICATION STYLES */
+        .toast-notification {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 320px;
+            background-color: #ffffff;
+            color: #1f2937;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            z-index: 9999;
+            display: none;
+        }
+
+        .toast-content {
+            font-size: 0.875rem;
+            line-height: 1.4;
+            color: #4b5563;
+            margin-bottom: 16px;
+        }
+
+        .toast-content strong {
+            color: #111827;
+        }
+
+        .toast-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-secondary {
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-size: 0.8125rem;
+            padding: 6px 0;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .btn-secondary:hover {
+            color: #374151;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: #ffffff;
+            border: none;
+            padding: 6px 14px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        @media (max-width: 768px) {
+            .checkout-container {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            .gallery-thumbs {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            .gallery-thumbs .thumb-item img {
+                max-width: 100px;
+            }
+            .toast-notification {
+                bottom: 12px;
+                right: 12px;
+                left: 12px;
+                width: auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .gallery-thumbs {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            .gallery-thumbs .thumb-item img {
+                max-width: 90px;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
-
 <body>
 
-    <h1>My Bike</h1>
+    <div class="checkout-container">
+        <!-- LEFT: PRODUCT REVIEW -->
+        <div class="product-section">
+            <h2>Select Payment Option</h2>
 
-    <img src="bike.jpg" alt="Electric bike">
+            <div class="gallery-thumbs">
+                <div class="thumb-item active" onclick="selectPaymentMethod('orange', this)">
+                    <img src="https://i.postimg.cc/VdHWL6Mf/IMG-4358.jpg" alt="Orange Money">
+                    <span class="thumb-label">Orange Money</span>
+                </div>
+                <div class="thumb-item" onclick="selectPaymentMethod('momo', this)">
+                    <img src="https://i.postimg.cc/F7nVsRcF/IMG-4359.jpg" alt="Mobile Money">
+                    <span class="thumb-label">Mobile Money</span>
+                </div>
+                <div class="thumb-item" onclick="selectPaymentMethod('bitcoin', this)">
+                    <img src="https://i.postimg.cc/tYmNCTPX/IMG-4361.jpg" alt="Bitcoin">
+                    <span class="thumb-label">Bitcoin</span>
+                </div>
+                <div class="thumb-item" onclick="selectPaymentMethod('visa', this)">
+                    <img src="https://i.postimg.cc/Whfwb3rs/IMG-4362.jpg" alt="Visa Card">
+                    <span class="thumb-label">Visa Card</span>
+                </div>
+                <div class="thumb-item" onclick="selectPaymentMethod('paypal', this)">
+                    <img src="https://i.postimg.cc/8jnmP5WD/IMG-4364.jpg" alt="PayPal">
+                    <span class="thumb-label">PayPal</span>
+                </div>
+                <div class="thumb-item" onclick="selectPaymentMethod('mastercard', this)">
+                    <img src="https://i.postimg.cc/BXvC0D86/IMG-4365.jpg" alt="Mastercard">
+                    <span class="thumb-label">Mastercard</span>
+                </div>
+            </div>
+
+            <div class="order-summary">
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span>$120.00</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total</span>
+                    <span>$120.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: PAYMENT FORM -->
+        <div class="payment-section">
+            <h2 id="paymentMethodTitle">Orange Money Details</h2>
+
+            <!-- STEP 1: REGULAR FORM -->
+            <form id="paymentForm" onsubmit="startInitialProcess(event)">
+
+                <div id="dynamicPaymentContent">
+                    <div class="mobile-info-box">
+                        <div class="info-item">
+                            <div class="info-label">Account Holder Name</div>
+                            <div class="info-value">Josue Martial Kouahou Hako</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Orange Money Number</div>
+                            <div class="info-value">
+                                <span id="currentMomoNumber">689222354</span>
+                                <button type="button" class="copy-btn" onclick="copyToClipboard('689222354', this)">Copy</button>
+                            </div>
+                        </div>
+                        <div class="info-item" style="margin-top:15px;">
+                            <label for="accountId" style="color:var(--text-muted); font-size:0.75rem; text-transform:uppercase;">Account ID / Transaction ID</label>
+                            <input type="text" id="accountId" placeholder="e.g. Txn #12345678" style="margin-top:4px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Sender Email Receipt To</label>
+                    <input type="email" id="email" placeholder="sender@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Sender Phone Number</label>
+                    <input type="tel" id="phone" placeholder="+237 600 000 000">
+                </div>
+
+                <button type="submit" class="pay-btn" id="payButton">Pay $120.00</button>
+            </form>
+
+            <!-- STEP 2: 5-SECOND GREEN LOADER OVERLAY -->
+            <div class="loader-overlay" id="firstLoader">
+                <div class="green-spinner"></div>
+                <p style="color:var(--text); font-weight:600;">Processing transaction details...</p>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-top:5px;">Please wait standard verification</p>
+            </div>
+
+            <!-- STEP 3: REFERENCE & CONFIRMATION INSTRUCTION VIEW -->
+            <div class="instruction-box" id="instructionScreen">
+                <div class="instruction-text" id="instructionText">
+                    Payment to the Orange Money number above <strong>689222354</strong> should be made with the reference number: <br><br>
+                    <span class="ref-badge">2345</span>
+                </div>
+                <button type="button" class="pay-btn" style="background-color: var(--success);" onclick="confirmPaymentAndSubscribe()">Confirm</button>
+            </div>
+
+            <!-- STEP 4: SUPABASE REALTIME WAITING SPINNER -->
+            <div class="loader-overlay" id="supabaseWaitingLoader">
+                <div class="green-spinner"></div>
+                <p style="color:var(--text); font-weight:600;">Waiting for Admin Confirmation...</p>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-top:5px;">Your transaction is being verified on our platform.</p>
+            </div>
+
+            <!-- STEP 5: FINAL CONFIRMED MESSAGE -->
+            <div id="finalSuccessMsg" class="instruction-box" style="border-color: var(--success);">
+                <p style="color: var(--success); font-size: 1.2rem; font-weight:700; margin-bottom: 8px;">✅ Payment Confirmed!</p>
+                <p style="color: var(--text-muted); font-size: 0.95rem;">Your payment has been successfully verified in our system.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div class="toast-notification" id="accountNote">
+        <div class="toast-content">
+            <strong>The account ID is used for account identification</strong>, so it’s important for proper verification of payment.
+        </div>
+        <div class="toast-actions">
+            <button class="btn-secondary" onclick="dismissPermanently()">Don't show again</button>
+            <button class="btn-primary" onclick="closeNote()">Got it</button>
+        </div>
+    </div>
+
+    <script>
+        // --- SUPABASE INITIALIZATION ---
+        // REPLACE WITH YOUR ACTUAL SUPABASE PROJECT URL AND ANON KEY
+        const SUPABASE_URL = "https://your-supabase-project.supabase.co";
+        const SUPABASE_ANON_KEY = "your-anon-key-here";
+        const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+        let selectedProvider = 'orange';
+        let activeNumber = '689222354';
+        let currentRecordId = null;
+
+        const cardFieldsTemplate = `
+            <div class="form-group">
+                <label for="cardholder">Cardholder Name</label>
+                <input type="text" id="cardholder" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+                <label for="cardnumber">Card Number</label>
+                <input type="text" id="cardnumber" placeholder="4532 •••• •••• 8954" maxlength="19">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="expiry">Expiry Date</label>
+                    <input type="text" id="expiry" placeholder="MM/YY" maxlength="5">
+                </div>
+                <div class="form-group">
+                    <label for="cvc">CVC</label>
+                    <input type="password" id="cvc" placeholder="•••" maxlength="4">
+                </div>
+            </div>
+        `;
+
+        function selectPaymentMethod(provider, element) {
+            selectedProvider = provider;
+
+            const items = document.querySelectorAll('.thumb-item');
+            items.forEach(item => item.classList.remove('active'));
+            element.classList.add('active');
+
+            const titleElem = document.getElementById('paymentMethodTitle');
+            const dynamicContent = document.getElementById('dynamicPaymentContent');
+
+            switch(provider) {
+                case 'orange':
+                    activeNumber = '689222354';
+                    titleElem.textContent = 'Orange Money Details';
+                    dynamicContent.innerHTML = `
+                        <div class="mobile-info-box">
+                            <div class="info-item">
+                                <div class="info-label">Account Holder Name</div>
+                                <div class="info-value">Josue Martial Kouahou Hako</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Orange Money Number</div>
+                                <div class="info-value">
+                                    <span>${activeNumber}</span>
+                                    <button type="button" class="copy-btn" onclick="copyToClipboard('${activeNumber}', this)">Copy</button>
+                                </div>
+                            </div>
+                            <div class="info-item" style="margin-top:15px;">
+                                <label for="accountId" style="color:var(--text-muted); font-size:0.75rem; text-transform:uppercase;">Account ID / Transaction ID</label>
+                                <input type="text" id="accountId" placeholder="e.g. Txn #12345678" style="margin-top:4px;">
+                            </div>
+                        </div>
+                    `;
+                    showToastNotification();
+                    break;
+
+                case 'momo':
+                    activeNumber = '654292201';
+                    titleElem.textContent = 'Mobile Money (MTN) Details';
+                    dynamicContent.innerHTML = `
+                        <div class="mobile-info-box">
+                            <div class="info-item">
+                                <div class="info-label">Account Holder Name</div>
+                                <div class="info-value">Josue Martial Kouahou Hako</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">MoMo Number</div>
+                                <div class="info-value">
+                                    <span>${activeNumber}</span>
+                                    <button type="button" class="copy-btn" onclick="copyToClipboard('${activeNumber}', this)">Copy</button>
+                                </div>
+                            </div>
+                            <div class="info-item" style="margin-top:15px;">
+                                <label for="accountId" style="color:var(--text-muted); font-size:0.75rem; text-transform:uppercase;">Account ID / Transaction ID</label>
+                                <input type="text" id="accountId" placeholder="e.g. Txn #12345678" style="margin-top:4px;">
+                            </div>
+                        </div>
+                    `;
+                    showToastNotification();
+                    break;
+
+                case 'visa':
+                    titleElem.textContent = 'Visa Card Details';
+                    dynamicContent.innerHTML = cardFieldsTemplate;
+                    closeNote();
+                    break;
+
+                case 'mastercard':
+                    titleElem.textContent = 'Mastercard Details';
+                    dynamicContent.innerHTML = cardFieldsTemplate;
+                    closeNote();
+                    break;
+
+                case 'bitcoin':
+                    titleElem.textContent = 'Bitcoin Payment';
+                    dynamicContent.innerHTML = `
+                        <div class="mobile-info-box">
+                            <div class="info-item">
+                                <div class="info-label">Bitcoin Deposit Address</div>
+                                <div class="info-value" style="font-size:0.85rem; word-break:break-all;">
+                                    <span>1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</span>
+                                    <button type="button" class="copy-btn" onclick="copyToClipboard('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', this)">Copy</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    closeNote();
+                    break;
+
+                case 'paypal':
+                    titleElem.textContent = 'PayPal Payment';
+                    dynamicContent.innerHTML = `
+                        <div class="mobile-info-box">
+                            <div class="info-item">
+                                <div class="info-label">PayPal Recipient</div>
+                                <div class="info-value">
+                                    <span>payments@example.com</span>
+                                    <button type="button" class="copy-btn" onclick="copyToClipboard('payments@example.com', this)">Copy</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    closeNote();
+                    break;
+            }
+        }
+
+        // --- STEP 1: INITIAL PAY BUTTON SUBMIT ---
+        function startInitialProcess(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value.trim();
+            if(!email) return;
+
+            // Hide form, show 5-second spinner
+            document.getElementById('paymentForm').style.display = 'none';
+            document.getElementById('firstLoader').style.display = 'flex';
+
+            setTimeout(() => {
+                // After 5 seconds, hide spinner and show Instruction screen
+                document.getElementById('firstLoader').style.display = 'none';
+                
+                const providerLabel = (selectedProvider === 'orange') ? 'Orange Money' : 'Momo';
+                document.getElementById('instructionText').innerHTML = `
+                    Payment to the <strong>${providerLabel}</strong> number above <strong>(${activeNumber})</strong> should be made with the reference number: <br><br>
+                    <span class="ref-badge">2345</span>
+                `;
+                
+                document.getElementById('instructionScreen').style.display = 'block';
+            }, 5000);
+        }
+
+        // --- STEP 2: CONFIRM BUTTON CLICK & SUPABASE REALTIME LISTENER ---
+        async function confirmPaymentAndSubscribe() {
+            document.getElementById('instructionScreen').style.display = 'none';
+            document.getElementById('supabaseWaitingLoader').style.display = 'flex';
+
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value ? document.getElementById('phone').value.trim() : 'N/A';
+            const accountIdElem = document.getElementById('accountId');
+            const accountId = accountIdElem ? accountIdElem.value.trim() : 'N/A';
+
+            // Insert pending record into Supabase Database
+            if (supabase) {
+                try {
+                    const { data, error } = await supabase
+                        .from('payments')
+                        .insert([
+                            { 
+                                sender_email: email, 
+                                sender_phone: phone, 
+                                account_id: accountId, 
+                                payment_method: selectedProvider,
+                                reference_number: '2345',
+                                status: 'pending'
+                            }
+                        ])
+                        .select();
+
+                    if (data && data.length > 0) {
+                        currentRecordId = data[0].id;
+                        listenForConfirmation(currentRecordId);
+                    }
+                } catch(err) {
+                    console.error("Supabase insert error:", err);
+                }
+            } else {
+                console.warn("Supabase configuration missing! Add your SUPABASE_URL & ANON_KEY to test real-time updates.");
+            }
+        }
+
+        // Realtime Subscription function to catch when Admin updates status = 'confirmed'
+        function listenForConfirmation(recordId) {
+            if (!supabase) return;
+
+            supabase
+                .channel('public:payments')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'payments',
+                        filter: `id=eq.${recordId}`
+                    },
+                    (payload) => {
+                        if (payload.new && payload.new.status === 'confirmed') {
+                            // Show final confirmed state
+                            document.getElementById('supabaseWaitingLoader').style.display = 'none';
+                            document.getElementById('finalSuccessMsg').style.display = 'block';
+                        }
+                    }
+                )
+                .subscribe();
+        }
+
+        /* Toast notification functions */
+        function showToastNotification() {
+            if (localStorage.getItem('hideAccountIdNote') !== 'true') {
+                document.getElementById('accountNote').style.display = 'block';
+            }
+        }
+
+        function closeNote() {
+            document.getElementById('accountNote').style.display = 'none';
+        }
+
+        function dismissPermanently() {
+            localStorage.setItem('hideAccountIdNote', 'true');
+            closeNote();
+        }
+
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = '#22c55e';
+                btn.style.color = '#fff';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            showToastNotification();
+        });
+    </script>
 
 </body>
 </html>
